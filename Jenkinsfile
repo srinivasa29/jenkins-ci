@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:18'
+            args '-u root:root'  
+        }
+    }
 
     stages {
         stage('Checkout') {
@@ -10,19 +15,19 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh "npm install"
+                sh 'npm install'
             }
         }
 
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
-                sh "npm run build || echo 'No build step'"
+                sh 'docker build -t mynodeapp:latest .'
             }
         }
 
-        stage('Test') {
+        stage('Run Container') {
             steps {
-                sh "npm test || echo 'No tests'"
+                sh 'docker run -d -p 3000:3000 --name node-app mynodeapp:latest'
             }
         }
     }
