@@ -1,0 +1,56 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE = "yourdockerhubusername/simple-node"
+        SERVER = "ubuntu@YOUR_SERVER_IP"
+    }
+
+    stages {
+        stage("Checkout") {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage("Install Dependencies") {
+            steps {
+                sh "npm install"
+            }
+        }
+
+        stage("Build Docker Image") {
+            steps {
+                sh "docker build -t $IMAGE:latest ."
+            }
+        }
+
+        stage("Push Docker Image") {
+            steps {
+                sh '''
+                    echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+                    docker push $IMAGE:latest
+                '''
+            }
+        }
+
+        stage("Deploy on Server") {
+            steps {
+                sh '''
+                    ssh -o StrictHostKeyChecking=no $SERVER "
+                        docker pull $IMAGE:latest &&
+                        docker stop simpleapp || true &&
+                        docker rm simpleapp || true &&
+                        docker run -d --name simpleapp -p 3000:3000 $IMAGE:latest
+                    "
+                '''
+            }
+        }
+
+        stage("Verify Deployment") {
+            steps {
+                sh "curl -f http://$SERVER:3000"
+            }
+        }
+    }
+}
